@@ -10,6 +10,17 @@
      if(CMAKE_HOST_UNIX AND NOT CYGWIN)
          set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fvisibility=hidden -Wno-strict-aliasing")
      endif()
+--- PySide-1.2.2/sources/shiboken/libshiboken/basewrapper.cpp.orig	2015-06-26 11:25:44.610800000 +0300
++++ PySide-1.2.2/sources/shiboken/libshiboken/basewrapper.cpp	2015-06-26 11:27:46.225600000 +0300
+@@ -770,7 +770,7 @@
+ Py_hash_t hash(PyObject* pyObj)
+ {
+     assert(Shiboken::Object::checkType(pyObj));
+-    return reinterpret_cast<Py_hash_t>(pyObj);
++    return reinterpret_cast<uintptr_t>(pyObj);
+ }
+ 
+ static void setSequenceOwnership(PyObject* pyObj, bool owner)
 --- PySide-1.2.2/sources/shiboken/shibokenmodule/CMakeLists.txt.orig	2015-06-26 07:00:25.341400000 +0300
 +++ PySide-1.2.2/sources/shiboken/shibokenmodule/CMakeLists.txt	2015-06-26 07:00:39.974200000 +0300
 @@ -9,7 +9,7 @@
@@ -28,7 +39,7 @@
      void setObjectName(const Str& name);
  
 -    inline unsigned long identifier() const { return reinterpret_cast<unsigned long>(this); }
-+    inline uintptr_t identifier() const { return reinterpret_cast<uintptr_t>(this); }
++    inline unsigned long identifier() const { return reinterpret_cast<uintptr_t>(this); }
  
      bool causeEvent(Event::EventType eventType);
  
@@ -44,17 +55,6 @@
  #else
  #include <cmath>
  #endif
---- PySide-1.2.2/sources/shiboken/libshiboken/sbkpython.h.orig	2015-06-26 08:56:26.421800000 +0300
-+++ PySide-1.2.2/sources/shiboken/libshiboken/sbkpython.h	2015-06-26 08:56:29.666600000 +0300
-@@ -51,7 +51,7 @@
-     #define SBK_STR_NAME "str"
-     #define SBK_PyMethod_New(X, Y) PyMethod_New(X, Y, (PyObject*)Py_TYPE(Y))
- 
--    #define Py_hash_t long
-+    #define Py_hash_t Py_ssize_t
- #endif
- 
- #endif
 --- PySide-1.2.2/sources/shiboken/generator/shiboken/overloaddata.cpp.orig	2015-06-26 10:00:46.779800000 +0300
 +++ PySide-1.2.2/sources/shiboken/generator/shiboken/overloaddata.cpp	2015-06-26 10:02:01.441400000 +0300
 @@ -882,7 +882,7 @@
@@ -66,33 +66,3 @@
          s << argId << ';' << endl;
  
          s << indent << '"' << argId << "\" [shape=\"plaintext\" style=\"filled,bold\" margin=\"0\" fontname=\"freemono\" fillcolor=\"white\" penwidth=1 ";
---- PySide-1.2.2/sources/shiboken/libshiboken/sbkenum.cpp.orig	2015-08-22 14:51:32.905720100 +0200
-+++ PySide-1.2.2/sources/shiboken/libshiboken/sbkenum.cpp	2015-08-22 14:52:25.847796000 +0200
-@@ -236,8 +236,11 @@
-     else
-         Py_RETURN_FALSE;
- }
--
-+#ifndef IS_PY3K
-+static long enum_hash(PyObject* pyObj)
-+#else
- static Py_hash_t enum_hash(PyObject* pyObj)
-+#endif
- {
-     Py_hash_t val = reinterpret_cast<SbkEnumObject*>(pyObj)->ob_value;
-     if (val == -1)
---- PySide-1.2.2/sources/shiboken/generator/shiboken/cppgenerator.cpp.orig	2015-08-22 15:27:58.272221600 +0200
-+++ PySide-1.2.2/sources/shiboken/generator/shiboken/cppgenerator.cpp	2015-08-22 15:29:15.978989600 +0200
-@@ -5058,7 +5058,11 @@
- 
- void CppGenerator::writeHashFunction(QTextStream& s, const AbstractMetaClass* metaClass)
- {
--    s << "static Py_hash_t " << cpythonBaseName(metaClass) << "_HashFunc(PyObject* self) {" << endl;
-+    s << "#ifdef IS_PY3K" << endl;
-+	s << "static Py_hash_t " << cpythonBaseName(metaClass) << "_HashFunc(PyObject* self) {" << endl;
-+	s << "#else" << endl;
-+	s << "static long " << cpythonBaseName(metaClass) << "_HashFunc(PyObject* self) {" << endl;
-+	s << "#endif" << endl;
-     writeCppSelfDefinition(s, metaClass);
-     s << INDENT << "return " << metaClass->typeEntry()->hashFunction() << '(';
-     s << (isObjectType(metaClass) ? "" : "*") << CPP_SELF_VAR << ");" << endl;

@@ -3,7 +3,7 @@
 
 DLAGENTS=("https::/usr/bin/curl -k -o %o %u")
 _realname=pyside
-pkgname=(${MINGW_PACKAGE_PREFIX}-${_realname}-common ${MINGW_PACKAGE_PREFIX}-python{2,3}-${_realname})
+pkgname=(${MINGW_PACKAGE_PREFIX}-${_realname}-common ${MINGW_PACKAGE_PREFIX}-python2-${_realname})
 pkgver=1.2.2
 pkgrel=1
 arch=('any')
@@ -13,11 +13,10 @@ install=${_realname}-${CARCH}.install
 source=(https://pypi.python.org/packages/source/P/PySide/PySide-${pkgver}.tar.gz
         pyside.patch)
 md5sums=('c45bc400c8a86d6b35f34c29e379e44d'
-         'c46448270f258c2fdc1d5d554fc67b18')
+         'c24be77f77fde7a4235e04b7b8af917a')
 makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
              "${MINGW_PACKAGE_PREFIX}-cmake"
              "${MINGW_PACKAGE_PREFIX}-python2-shiboken"
-             "${MINGW_PACKAGE_PREFIX}-python3-shiboken"
              "${MINGW_PACKAGE_PREFIX}-qt4")
 options=('staticlibs' 'strip')
 
@@ -27,7 +26,7 @@ prepare() {
 }
 
 build() {
-  for pyv in python2 python3; do
+  for pyv in python2; do
     local _conf=
     if [ "${pyv}" = "python2" ]; then
       _conf="-DPYTHON_SUFFIX=-python2.7"
@@ -68,14 +67,6 @@ fix_paths() {
 package_pyside-common() {
   pkgdesc="Provides LGPL Qt bindings for Python and related tools for binding generation (Common files)(mingw-w64)"
 
-  cd ${srcdir}/build-${MINGW_CHOST}-python3/sources/pyside
-  make DESTDIR=${pkgdir} install
-  
-  rm -rf ${pkgdir}${MINGW_PREFIX}/bin
-  rm -rf ${pkgdir}${MINGW_PREFIX}/lib/python*
-  rm -rf ${pkgdir}${MINGW_PREFIX}/lib/libpyside*
-  rm -rf ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig
-  rm ${pkgdir}${MINGW_PREFIX}/lib/cmake/PySide-${pkgver}/PySideConfig*python*.cmake
   
   fix_paths
 }
@@ -94,29 +85,10 @@ package_python2-pyside() {
   mv ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/pyside.pc ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/pyside-py2.pc
   sed -i 's/shiboken/shiboken-py2/g' ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/pyside-py2.pc
   
-  rm -rf ${pkgdir}${MINGW_PREFIX}/{include,share}
-  rm ${pkgdir}${MINGW_PREFIX}/lib/cmake/PySide-${pkgver}/PySideConfigVersion.cmake
-  rm ${pkgdir}${MINGW_PREFIX}/lib/cmake/PySide-${pkgver}/PySideConfig.cmake
   
   fix_paths
 }
 
-package_python3-pyside() {
-  pkgdesc="Provides LGPL Qt bindings for Python and related tools for binding generation (Python3)(mingw-w64)"
-  makedepends=("${MINGW_PACKAGE_PREFIX}-pyside-common"
-               "${MINGW_PACKAGE_PREFIX}-python3"
-               "${MINGW_PACKAGE_PREFIX}-python3-shiboken"
-               "${MINGW_PACKAGE_PREFIX}-qt4")
-
-  cd ${srcdir}/build-${MINGW_CHOST}-python3/sources/pyside
-  make DESTDIR=${pkgdir} install
-  
-  rm -rf ${pkgdir}${MINGW_PREFIX}/{include,share}
-  rm ${pkgdir}${MINGW_PREFIX}/lib/cmake/PySide-${pkgver}/PySideConfigVersion.cmake
-  rm ${pkgdir}${MINGW_PREFIX}/lib/cmake/PySide-${pkgver}/PySideConfig.cmake
-  
-  fix_paths
-}
 
 # Wrappers
 package_mingw-w64-i686-pyside-common() {
@@ -127,10 +99,6 @@ package_mingw-w64-i686-python2-pyside() {
   package_python2-pyside
 }
 
-package_mingw-w64-i686-python3-pyside() {
-  package_python3-pyside
-}
-
 package_mingw-w64-x86_64-pyside-common() {
   package_pyside-common
 }
@@ -139,6 +107,3 @@ package_mingw-w64-x86_64-python2-pyside() {
   package_python2-pyside
 }
 
-package_mingw-w64-x86_64-python3-pyside() {
-  package_python3-pyside
-}

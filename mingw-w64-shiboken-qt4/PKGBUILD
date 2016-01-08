@@ -3,7 +3,7 @@
 
 DLAGENTS=("https::/usr/bin/curl -k -o %o %u")
 _realname=shiboken
-pkgname=(${MINGW_PACKAGE_PREFIX}-${_realname} ${MINGW_PACKAGE_PREFIX}-python{2,3}-${_realname})
+pkgname=(${MINGW_PACKAGE_PREFIX}-${_realname} ${MINGW_PACKAGE_PREFIX}-python2-${_realname})
 pkgver=1.2.2
 pkgrel=1
 arch=('any')
@@ -13,11 +13,10 @@ install=${_realname}-${CARCH}.install
 source=(https://pypi.python.org/packages/source/P/PySide/PySide-${pkgver}.tar.gz
         shiboken.patch)
 md5sums=('c45bc400c8a86d6b35f34c29e379e44d'
-         'b5950f46d37ee92b57a60b91e3ecb224')
+         '79cbe9b06107a431693c401944e78c3b')
 makedepends=("${MINGW_PACKAGE_PREFIX}-libxml2"
              "${MINGW_PACKAGE_PREFIX}-libxslt"
              "${MINGW_PACKAGE_PREFIX}-python2"
-             "${MINGW_PACKAGE_PREFIX}-python3"
              "${MINGW_PACKAGE_PREFIX}-qt4"
              "${MINGW_PACKAGE_PREFIX}-gcc"
              "${MINGW_PACKAGE_PREFIX}-cmake")
@@ -29,7 +28,7 @@ prepare() {
 }
 
 build() {
-  for pyv in python2 python3; do
+  for pyv in python2; do
     local _conf=
     if [ "${pyv}" = "python3" ]; then
       _conf="-DUSE_PYTHON3=yes"
@@ -74,18 +73,9 @@ package_shiboken() {
                "${MINGW_PACKAGE_PREFIX}-python3"
                "${MINGW_PACKAGE_PREFIX}-qt4")
 
-  cd ${srcdir}/build-${MINGW_CHOST}-python3/sources/shiboken
-  make DESTDIR=${pkgdir} install
-  
-  cd ${srcdir}/build-${MINGW_CHOST}-python2/sources/shiboken/data
+  #cd ${srcdir}/build-${MINGW_CHOST}-python2/sources/shiboken/data
   #install -Dm644 ShibokenConfig-python2.7.cmake ${pkgdir}${MINGW_PREFIX}/lib/cmake/Shiboken-${pkgver}/
   #install -Dm644 shiboken.pc ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/Shiboken-py2.pc
-  
-  rm ${pkgdir}${MINGW_PREFIX}/bin/*.dll
-  rm -rf ${pkgdir}${MINGW_PREFIX}/lib/python*
-  rm -rf ${pkgdir}${MINGW_PREFIX}/lib/libshiboken*
-  rm -rf ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig
-  rm ${pkgdir}${MINGW_PREFIX}/lib/cmake/Shiboken-${pkgver}/ShibokenConfig*python*.cmake
   
   fix_paths
 }
@@ -105,30 +95,6 @@ package_python2-shiboken() {
   install -Dm644 ShibokenConfig-python2.7.cmake ${pkgdir}${MINGW_PREFIX}/lib/cmake/Shiboken-${pkgver}/
   mv ${pkgdir}${MINGW_PREFIX}/lib/pkgconfig/shiboken{,-py2}.pc
   
-  rm ${pkgdir}${MINGW_PREFIX}/bin/*.exe
-  rm -rf ${pkgdir}${MINGW_PREFIX}/{include,share}
-  rm ${pkgdir}${MINGW_PREFIX}/lib/cmake/Shiboken-${pkgver}/ShibokenConfigVersion.cmake
-  rm ${pkgdir}${MINGW_PREFIX}/lib/cmake/Shiboken-${pkgver}/ShibokenConfig.cmake
-  
-  fix_paths
-}
-
-package_python3-shiboken() {
-  pkgdesc="Support library for Python3 bindings (mingw-w64)"
-  makedepends=("${MINGW_PACKAGE_PREFIX}-libxml2"
-               "${MINGW_PACKAGE_PREFIX}-libxslt"
-               "${MINGW_PACKAGE_PREFIX}-python3"
-               "${MINGW_PACKAGE_PREFIX}-shiboken"
-               "${MINGW_PACKAGE_PREFIX}-qt4")
-
-  cd ${srcdir}/build-${MINGW_CHOST}-python3/sources/shiboken
-  make DESTDIR=${pkgdir} install
-  
-  rm ${pkgdir}${MINGW_PREFIX}/bin/*.exe
-  rm -rf ${pkgdir}${MINGW_PREFIX}/{include,share}
-  rm ${pkgdir}${MINGW_PREFIX}/lib/cmake/Shiboken-${pkgver}/ShibokenConfigVersion.cmake
-  rm ${pkgdir}${MINGW_PREFIX}/lib/cmake/Shiboken-${pkgver}/ShibokenConfig.cmake
-  
   fix_paths
 }
 
@@ -141,10 +107,6 @@ package_mingw-w64-i686-python2-shiboken() {
   package_python2-shiboken
 }
 
-package_mingw-w64-i686-python3-shiboken() {
-  package_python3-shiboken
-}
-
 package_mingw-w64-x86_64-shiboken() {
   package_shiboken
 }
@@ -153,6 +115,3 @@ package_mingw-w64-x86_64-python2-shiboken() {
   package_python2-shiboken
 }
 
-package_mingw-w64-x86_64-python3-shiboken() {
-  package_python3-shiboken
-}
