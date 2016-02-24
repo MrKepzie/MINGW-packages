@@ -71,10 +71,10 @@ index 9e13b9f..3bb560f 100644
  using std::max;
  using std::sort;
 diff --git a/OpenEXR/IlmImf/ImfStdIO.cpp b/OpenEXR/IlmImf/ImfStdIO.cpp
-index 1839a94..7828bc0 100644
+index 1839a94..95c7d9f 100644
 --- a/OpenEXR/IlmImf/ImfStdIO.cpp
 +++ b/OpenEXR/IlmImf/ImfStdIO.cpp
-@@ -43,14 +43,28 @@
+@@ -43,12 +43,32 @@
  #include <ImfStdIO.h>
  #include "Iex.h"
  #include <errno.h>
@@ -87,9 +87,10 @@ index 1839a94..7828bc0 100644
  
  OPENEXR_IMF_INTERNAL_NAMESPACE_SOURCE_ENTER
  
- namespace {
- 
 +#ifdef _WIN32
++
++namespace StrUtils {
++
 +std::wstring
 +utf8_to_utf16 (const std::string& str)
 +{
@@ -100,12 +101,15 @@ index 1839a94..7828bc0 100644
 +
 +    return native;
 +}
++
++}
++
 +#endif // _WIN32
 +
+ namespace {
+ 
  void
- clearError ()
- {
-@@ -59,7 +73,7 @@ clearError ()
+@@ -59,7 +79,7 @@ clearError ()
  
  
  bool
@@ -114,7 +118,7 @@ index 1839a94..7828bc0 100644
  {
      if (!is)
      {
-@@ -79,7 +93,7 @@ checkError (istream &is, streamsize expected = 0)
+@@ -79,7 +99,7 @@ checkError (istream &is, streamsize expected = 0)
  
  
  void
@@ -123,16 +127,25 @@ index 1839a94..7828bc0 100644
  {
      if (!os)
      {
-@@ -95,7 +109,7 @@ checkError (ostream &os)
+@@ -95,9 +115,16 @@ checkError (ostream &os)
  
  StdIFStream::StdIFStream (const char fileName[]):
      OPENEXR_IMF_INTERNAL_NAMESPACE::IStream (fileName),
 -    _is (new ifstream (fileName, ios_base::binary)),
-+    _is (new OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream (utf8_to_utf16(std::string(fileName)), std::ios_base::binary)),
++    _is (0),
      _deleteStream (true)
  {
++#ifdef _WIN32
++	std::wstring wfilename = StrUtils::utf8_to_utf16(std::string(fileName));
++	_is = new OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream (wfilename, std::ios_base::binary);
++#else
++	_is = new OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream (fileName, std::ios_base::binary);
++#endif
++
      if (!*_is)
-@@ -106,7 +120,7 @@ StdIFStream::StdIFStream (const char fileName[]):
+     {
+ 	delete _is;
+@@ -106,7 +133,7 @@ StdIFStream::StdIFStream (const char fileName[]):
  }
  
      
@@ -141,16 +154,24 @@ index 1839a94..7828bc0 100644
      OPENEXR_IMF_INTERNAL_NAMESPACE::IStream (fileName),
      _is (&is),
      _deleteStream (false)
-@@ -158,7 +172,7 @@ StdIFStream::clear ()
+@@ -158,9 +185,15 @@ StdIFStream::clear ()
  
  StdOFStream::StdOFStream (const char fileName[]):
      OPENEXR_IMF_INTERNAL_NAMESPACE::OStream (fileName),
 -    _os (new ofstream (fileName, ios_base::binary)),
-+    _os (new OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream (utf8_to_utf16(std::string(fileName)), std::ios_base::binary)),
++    _os (0),
      _deleteStream (true)
  {
++#ifdef _WIN32
++	std::wstring wfilename = StrUtils::utf8_to_utf16(std::string(fileName));
++	_os = new OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream (wfilename, std::ios_base::binary);
++#else
++	_os = new OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream (fileName, std::ios_base::binary);
++#endif
      if (!*_os)
-@@ -169,7 +183,7 @@ StdOFStream::StdOFStream (const char fileName[]):
+     {
+ 	delete _os;
+@@ -169,7 +202,7 @@ StdOFStream::StdOFStream (const char fileName[]):
  }
  
  
@@ -160,10 +181,10 @@ index 1839a94..7828bc0 100644
      _os (&os),
      _deleteStream (false)
 diff --git a/OpenEXR/IlmImf/ImfStdIO.h b/OpenEXR/IlmImf/ImfStdIO.h
-index 56ea4e2..781d6d0 100644
+index 56ea4e2..bc51a7b 100644
 --- a/OpenEXR/IlmImf/ImfStdIO.h
 +++ b/OpenEXR/IlmImf/ImfStdIO.h
-@@ -50,9 +50,26 @@
+@@ -50,9 +50,38 @@
  #include <fstream>
  #include <sstream>
  
@@ -187,10 +208,22 @@ index 56ea4e2..781d6d0 100644
 +typedef std::ofstream ofstream;
 +#endif //FSTREAM_USE_STDIO_FILEBUF
 +
++#ifdef _WIN32
++namespace StrUtils {
++//-------------------------------------------
++// Converts a UTF-8 encoded string into a UTF-16 encoded wide string.
++// This is useful on Windows to correctly handle UTF-8 encoded std::string filenames 
++// passed to ifstream/ofstream
++//-------------------------------------------
++IMF_EXPORT std::wstring utf8_to_utf16 (const std::string& str);
++
++} // namespace StrUtils
++#endif // _WIN32
++
  //-------------------------------------------
  // class StdIFStream -- an implementation of
  // class OPENEXR_IMF_INTERNAL_NAMESPACE::IStream based on class std::ifstream
-@@ -76,7 +93,7 @@ class IMF_EXPORT StdIFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::IStream
+@@ -76,7 +105,7 @@ class IMF_EXPORT StdIFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::IStream
      // will not close the std::ifstream.
      //---------------------------------------------------------
  
@@ -199,7 +232,7 @@ index 56ea4e2..781d6d0 100644
  
  
      virtual ~StdIFStream ();
-@@ -88,7 +105,7 @@ class IMF_EXPORT StdIFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::IStream
+@@ -88,7 +117,7 @@ class IMF_EXPORT StdIFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::IStream
  
    private:
  
@@ -208,7 +241,7 @@ index 56ea4e2..781d6d0 100644
      bool		_deleteStream;
  };
  
-@@ -116,7 +133,7 @@ class IMF_EXPORT StdOFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::OStream
+@@ -116,7 +145,7 @@ class IMF_EXPORT StdOFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::OStream
      // will not close the std::ofstream.
      //---------------------------------------------------------
  
@@ -217,7 +250,7 @@ index 56ea4e2..781d6d0 100644
  
  
      virtual ~StdOFStream ();
-@@ -127,7 +144,7 @@ class IMF_EXPORT StdOFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::OStream
+@@ -127,7 +156,7 @@ class IMF_EXPORT StdOFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::OStream
  
    private:
  
@@ -601,70 +634,635 @@ index 0000000..fd2ccc4
 +
 +
 +#endif // INCLUDED_IMF_FSTREAM_MINGW_H
+diff --git a/OpenEXR/IlmImfFuzzTest/fuzzFile.cpp b/OpenEXR/IlmImfFuzzTest/fuzzFile.cpp
+index f7d3b33..202b5d6 100644
+--- a/OpenEXR/IlmImfFuzzTest/fuzzFile.cpp
++++ b/OpenEXR/IlmImfFuzzTest/fuzzFile.cpp
+@@ -35,6 +35,7 @@
+ 
+ #include <fuzzFile.h>
+ 
++#include <ImfStdIO.h>
+ #include <ImfRgbaFile.h>
+ #include <ImfArray.h>
+ #include <Iex.h>
+@@ -43,10 +44,10 @@
+ #include <iostream>
+ #include <fstream>
+ 
++
+ // Handle the case when the custom namespace is not exposed
+ #include <OpenEXRConfig.h>
+ using namespace OPENEXR_IMF_INTERNAL_NAMESPACE;
+-using namespace std;
+ using namespace IMATH_NAMESPACE;
+ 
+ 
+@@ -55,12 +56,17 @@ namespace {
+ Int64
+ lengthOfFile (const char fileName[])
+ {
+-    ifstream ifs (fileName, ios_base::binary);
++#ifdef _WIN32
++	std::wstring filenameStr = StrUtils::utf8_to_utf16(std::string(fileName));
++#else
++	std::string filenameStr(fileName);
++#endif
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream ifs (filenameStr, std::ios_base::binary);
+ 
+     if (!ifs)
+ 	return 0;
+ 
+-    ifs.seekg (0, ios_base::end);
++    ifs.seekg (0, std::ios_base::end);
+     return ifs.tellg();
+ }
+ 
+@@ -76,21 +82,25 @@ fuzzFile (const char goodFile[],
+     //
+     // Read the input file.
+     //
+-
+-    ifstream ifs (goodFile, ios_base::binary);
++#ifdef _WIN32
++	std::wstring goodFileStr = StrUtils::utf8_to_utf16(std::string(goodFile));
++#else
++	std::string goodFileStr(goodFile);
++#endif
++    OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream ifs (goodFileStr, std::ios_base::binary);
+ 
+     if (!ifs)
+ 	THROW_ERRNO ("Cannot open file " << goodFile << " (%T).");
+ 
+-    ifs.seekg (0, ios_base::end);
++    ifs.seekg (0, std::ios_base::end);
+     Int64 fileLength = ifs.tellg();
+-    ifs.seekg (0, ios_base::beg);
++    ifs.seekg (0, std::ios_base::beg);
+ 
+     Array<char> data (fileLength);
+     ifs.read (data, fileLength);
+ 
+     if (!ifs)
+-	THROW_ERRNO ("Cannot read file " << goodFile << " (%T)." << endl);
++	THROW_ERRNO ("Cannot read file " << goodFile << " (%T)." << std::endl);
+ 
+     //
+     // Damage the contents of the file by overwriting some of the bytes
+@@ -106,16 +116,20 @@ fuzzFile (const char goodFile[],
+     //
+     // Save the damaged file contents in the output file.
+     //
+-
+-    ofstream ofs (brokenFile, ios_base::binary);
++#ifdef _WIN32
++	std::wstring brokenFileStr = StrUtils::utf8_to_utf16(std::string(brokenFile));
++#else
++	std::string brokenFileStr(brokenFile);
++#endif
++    OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream ofs (brokenFileStr, std::ios_base::binary);
+ 
+     if (!ofs)
+-	THROW_ERRNO ("Cannot open file " << brokenFile << " (%T)." << endl);
++	THROW_ERRNO ("Cannot open file " << brokenFile << " (%T)." << std::endl);
+ 
+     ofs.write (data, fileLength);
+ 
+     if (!ofs)
+-	THROW_ERRNO ("Cannot write file " << brokenFile << " (%T)." << endl);
++	THROW_ERRNO ("Cannot write file " << brokenFile << " (%T)." << std::endl);
+ }
+ 
+ } // namespace
+@@ -154,12 +168,12 @@ fuzzFile (const char goodFile[],
+ 	Int64 windowSize = fileSize * 2 / nSlidingWindow;
+ 	Int64 lastWindowOffset = fileSize - windowSize;
+ 
+-	cout << "sliding " << windowSize << "-byte window" << endl;
++	std::cout << "sliding " << windowSize << "-byte window" << std::endl;
+ 
+ 	for (int i = 0; i < nSlidingWindow; ++i)
+ 	{
+ 	    if (i % 100 == 0)
+-		cout << i << "\r" << flush;
++		std::cout << i << "\r" << std::flush;
+ 
+ 	    Int64 offset = lastWindowOffset * i / (nSlidingWindow - 1);
+ 	    double fuzzAmount = random.nextf (0.0, 0.1);
+@@ -171,18 +185,18 @@ fuzzFile (const char goodFile[],
+ 	    readFile (brokenFile);
+ 	}
+ 
+-	cout << nSlidingWindow << endl;
++	std::cout << nSlidingWindow << std::endl;
+     }
+ 
+     {
+ 	Int64 windowSize = 2048;
+ 
+-	cout << windowSize << "-byte window at start of file" << endl;
++	std::cout << windowSize << "-byte window at start of file" << std::endl;
+ 
+ 	for (int i = 0; i < nFixedWindow; ++i)
+ 	{
+ 	    if (i % 100 == 0)
+-		cout << i << "\r" << flush;
++		std::cout << i << "\r" << std::flush;
+ 
+ 	    double fuzzAmount = random.nextf (0.0, 0.1);
+ 
+@@ -193,6 +207,6 @@ fuzzFile (const char goodFile[],
+ 	    readFile (brokenFile);
+ 	}
+ 
+-	cout << nFixedWindow << endl;
++	std::cout << nFixedWindow << std::endl;
+     }
+ }
 diff --git a/OpenEXR/IlmImfTest/testExistingStreams.cpp b/OpenEXR/IlmImfTest/testExistingStreams.cpp
-index 69658c3..8025a40 100644
+index 69658c3..0e09b1e 100644
 --- a/OpenEXR/IlmImfTest/testExistingStreams.cpp
 +++ b/OpenEXR/IlmImfTest/testExistingStreams.cpp
-@@ -136,7 +136,7 @@ MMIFStream::MMIFStream (const char fileName[]):
+@@ -53,7 +53,6 @@
+ 
+ 
+ using namespace OPENEXR_IMF_NAMESPACE;
+-using namespace std;
+ using namespace IMATH_NAMESPACE;
+ 
+ namespace {
+@@ -136,15 +135,20 @@ MMIFStream::MMIFStream (const char fileName[]):
      _length (0),
      _pos (0)
  {
 -    std::ifstream ifs (fileName, ios_base::binary);
-+    OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream ifs (fileName, ios_base::binary);
++#ifdef _WIN32
++	std::wstring filenameStr = StrUtils::utf8_to_utf16(std::string(fileName));
++#else
++	std::string filenameStr(fileName);
++#endif
++    OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream ifs (filenameStr, std::ios_base::binary);
  
      //
      // Get length of file
-@@ -227,7 +227,7 @@ writeReadScanLines (const char fileName[],
+     //
+ 
+-    ifs.seekg (0, ios::end);
++    ifs.seekg (0, std::ios::end);
+     _length = ifs.tellg();
+-    ifs.seekg (0, ios::beg);
++    ifs.seekg (0, std::ios::beg);
+     
+     //
+     // Allocate memory
+@@ -209,6 +213,12 @@ writeReadScanLines (const char fileName[],
+ 		    int height,
+ 		    const Array2D<Rgba> &p1)
+ {
++#ifdef _WIN32
++	std::wstring filenameStr = StrUtils::utf8_to_utf16(std::string(fileName));
++#else
++	std::string filenameStr(fileName);
++#endif
++
+     //
+     // Save a scanline-based RGBA image, but instead of
+     // letting the RgbaOutputFile object open the file,
+@@ -220,14 +230,14 @@ writeReadScanLines (const char fileName[],
+     // MMIFStream (see above).
+     //
+ 
+-    cout << "scan-line based file:" << endl;
++    std::cout << "scan-line based file:" << std::endl;
+ 
+     Header header (width, height);
+ 
      {
-         cout << "writing";
+-        cout << "writing";
++        std::cout << "writing";
  	remove (fileName);
 -	std::ofstream os (fileName, ios_base::binary);
-+	OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream os (fileName, ios_base::binary);
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream os (filenameStr, std::ios_base::binary);
  	StdOFStream ofs (os, fileName);
  	RgbaOutputFile out (ofs, header, WRITE_RGBA);
  	out.setFrameBuffer (&p1[0][0], 1, width);
-@@ -236,7 +236,7 @@ writeReadScanLines (const char fileName[],
+@@ -235,8 +245,9 @@ writeReadScanLines (const char fileName[],
+     }
  
      {
-         cout << ", reading";
+-        cout << ", reading";
 -	std::ifstream is (fileName, ios_base::binary);
-+	OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream is (fileName, ios_base::binary);
++        std::cout << ", reading";
++
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream is (filenameStr, std::ios_base::binary);
  	StdIFStream ifs (is, fileName);
  	RgbaInputFile in (ifs);
  
-@@ -330,7 +330,7 @@ writeReadMultiPart (const char fileName[],
+@@ -250,7 +261,7 @@ writeReadScanLines (const char fileName[],
+ 	in.setFrameBuffer (&p2[-dy][-dx], 1, w);
+ 	in.readPixels (dw.min.y, dw.max.y);
+ 
+-        cout << ", comparing";
++        std::cout << ", comparing";
+ 	for (int y = 0; y < h; ++y)
+ 	{
+ 	    for (int x = 0; x < w; ++x)
+@@ -264,7 +275,7 @@ writeReadScanLines (const char fileName[],
+     }
+     
      {
-         cout << "writing";
+-        cout << ", reading (memory-mapped)";
++        std::cout << ", reading (memory-mapped)";
+ 	MMIFStream ifs (fileName);
+ 	RgbaInputFile in (ifs);
+ 
+@@ -278,7 +289,7 @@ writeReadScanLines (const char fileName[],
+ 	in.setFrameBuffer (&p2[-dy][-dx], 1, w);
+ 	in.readPixels (dw.min.y, dw.max.y);
+ 
+-        cout << ", comparing";
++        std::cout << ", comparing";
+ 	for (int y = 0; y < h; ++y)
+ 	{
+ 	    for (int x = 0; x < w; ++x)
+@@ -291,7 +302,7 @@ writeReadScanLines (const char fileName[],
+ 	}
+     }
+     
+-    cout << endl;
++    std::cout << std::endl;
+ 
+     remove (fileName);
+ }
+@@ -301,6 +312,11 @@ writeReadMultiPart (const char fileName[],
+                     int height,
+                     const Array2D<Rgba> &p1)
+ {
++#ifdef _WIN32
++	std::wstring filenameStr = StrUtils::utf8_to_utf16(std::string(fileName));
++#else
++	std::string filenameStr(fileName);
++#endif
+     //
+     // Save a two scanline parts in an image, but instead of
+     // letting the MultiPartOutputFile object open the file,
+@@ -312,9 +328,9 @@ writeReadMultiPart (const char fileName[],
+     // MMIFStream (see above).
+     //
+                         
+-    cout << "scan-line based mulitpart file:" << endl;
++    std::cout << "scan-line based mulitpart file:" << std::endl;
+                         
+-    vector<Header> headers(2);
++    std::vector<Header> headers(2);
+     headers[0] = Header(width, height);
+     headers[0].setName("part1");
+     headers[0].channels().insert("R",Channel());
+@@ -328,9 +344,9 @@ writeReadMultiPart (const char fileName[],
+     
+     
+     {
+-        cout << "writing";
++        std::cout << "writing";
          remove (fileName);
 -        std::ofstream os (fileName, ios_base::binary);
-+        OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream os (fileName, ios_base::binary);
++        OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream os (filenameStr, std::ios_base::binary);
          StdOFStream ofs (os, fileName);
          MultiPartOutputFile out (ofs, &headers[0],2);
          FrameBuffer f;
-@@ -349,7 +349,7 @@ writeReadMultiPart (const char fileName[],
+@@ -348,8 +364,8 @@ writeReadMultiPart (const char fileName[],
+     }
                          
      {
-         cout << ", reading";
+-        cout << ", reading";
 -        std::ifstream is (fileName, ios_base::binary);
-+        OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream is (fileName, ios_base::binary);
++        std::cout << ", reading";
++        OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream is (filenameStr, std::ios_base::binary);
          StdIFStream ifs (is, fileName);
          MultiPartInputFile in (ifs);
          
-@@ -462,7 +462,7 @@ writeReadTiles (const char fileName[],
+@@ -376,7 +392,7 @@ writeReadMultiPart (const char fileName[],
+             p.setFrameBuffer(f);
+             p.readPixels (dw.min.y, dw.max.y);
+                             
+-            cout << ", comparing pt " << part;
++            std::cout << ", comparing pt " << part;
+             for (int y = 0; y < h; ++y)
+             {
+                 for (int x = 0; x < w; ++x)
+@@ -391,7 +407,7 @@ writeReadMultiPart (const char fileName[],
+     }
+     
      {
-         cout << "writing";
+-        cout << ", reading (memory-mapped)";
++        std::cout << ", reading (memory-mapped)";
+         MMIFStream ifs (fileName);
+         MultiPartInputFile in (ifs);
+         
+@@ -419,7 +435,7 @@ writeReadMultiPart (const char fileName[],
+             p.setFrameBuffer(f);
+             p.readPixels (dw.min.y, dw.max.y);
+             
+-            cout << ", comparing pt " << part;
++            std::cout << ", comparing pt " << part;
+             for (int y = 0; y < h; ++y)
+             {
+                 for (int x = 0; x < w; ++x)
+@@ -433,7 +449,7 @@ writeReadMultiPart (const char fileName[],
+         }
+     }
+     
+-    cout << endl;
++    std::cout << std::endl;
+                         
+     remove (fileName);
+ }
+@@ -446,6 +462,11 @@ writeReadTiles (const char fileName[],
+ 		int height,
+ 		const Array2D<Rgba> &p1)
+ {
++#ifdef _WIN32
++	std::wstring filenameStr = StrUtils::utf8_to_utf16(std::string(fileName));
++#else
++	std::string filenameStr(fileName);
++#endif
+     //
+     // Save a tiled RGBA image, but instead of letting
+     // the TiledRgbaOutputFile object open the file, make
+@@ -455,14 +476,14 @@ writeReadTiles (const char fileName[],
+     // second time using a memory-mapped MMIFStream (see above).
+     //
+ 
+-    cout << "tiled file:" << endl;
++    std::cout << "tiled file:" << std::endl;
+ 
+     Header header (width, height);
+ 
+     {
+-        cout << "writing";
++        std::cout << "writing";
  	remove (fileName);
 -	std::ofstream os (fileName, ios_base::binary);
-+	OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream os (fileName, ios_base::binary);
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream os (filenameStr, std::ios_base::binary);
  	StdOFStream ofs (os, fileName);
  	TiledRgbaOutputFile out (ofs, header, WRITE_RGBA, 20, 20, ONE_LEVEL);
  	out.setFrameBuffer (&p1[0][0], 1, width);
-@@ -471,7 +471,7 @@ writeReadTiles (const char fileName[],
+@@ -470,8 +491,8 @@ writeReadTiles (const char fileName[],
+     }
  
      {
-         cout << ", reading";
+-        cout << ", reading";
 -	std::ifstream is (fileName, ios_base::binary);
-+	OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream is (fileName, ios_base::binary);
++        std::cout << ", reading";
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream is (filenameStr, std::ios_base::binary);
  	StdIFStream ifs (is, fileName);
  	TiledRgbaInputFile in (ifs);
  
+@@ -485,7 +506,7 @@ writeReadTiles (const char fileName[],
+ 	in.setFrameBuffer (&p2[-dy][-dx], 1, w);
+         in.readTiles (0, in.numXTiles() - 1, 0, in.numYTiles() - 1);
+ 
+-        cout << ", comparing";
++        std::cout << ", comparing";
+ 	for (int y = 0; y < h; ++y)
+ 	{
+ 	    for (int x = 0; x < w; ++x)
+@@ -499,7 +520,7 @@ writeReadTiles (const char fileName[],
+     }
+     
+     {
+-        cout << ", reading (memory-mapped)";
++        std::cout << ", reading (memory-mapped)";
+ 	MMIFStream ifs (fileName);
+ 	TiledRgbaInputFile in (ifs);
+ 
+@@ -513,7 +534,7 @@ writeReadTiles (const char fileName[],
+ 	in.setFrameBuffer (&p2[-dy][-dx], 1, w);
+         in.readTiles (0, in.numXTiles() - 1, 0, in.numYTiles() - 1);
+ 
+-        cout << ", comparing";
++        std::cout << ", comparing";
+ 	for (int y = 0; y < h; ++y)
+ 	{
+ 	    for (int x = 0; x < w; ++x)
+@@ -526,7 +547,7 @@ writeReadTiles (const char fileName[],
+ 	}
+     }
+     
+-    cout << endl;
++    std::cout << std::endl;
+ 
+     remove (fileName);
+ }
+@@ -540,7 +561,7 @@ testExistingStreams (const std::string &tempDir)
+ {
+     try
+     {
+-	cout << "Testing reading and writing using existing streams" << endl;
++	std::cout << "Testing reading and writing using existing streams" << std::endl;
+ 
+ 	const int W = 119;
+ 	const int H = 237;
+@@ -556,11 +577,11 @@ testExistingStreams (const std::string &tempDir)
+     fillPixels1 (p1, W, H);
+     writeReadMultiPart ((tempDir +  "imf_test_streams3.exr").c_str(), W, H, p1);
+ 
+-	cout << "ok\n" << endl;
++	std::cout << "ok\n" << std::endl;
+     }
+     catch (const std::exception &e)
+     {
+-	cerr << "ERROR -- caught exception: " << e.what() << endl;
++	std::cerr << "ERROR -- caught exception: " << e.what() << std::endl;
+ 	assert (false);
+     }
+ }
+diff --git a/OpenEXR/IlmImfTest/testMagic.cpp b/OpenEXR/IlmImfTest/testMagic.cpp
+index afe87e1..aa7603a 100644
+--- a/OpenEXR/IlmImfTest/testMagic.cpp
++++ b/OpenEXR/IlmImfTest/testMagic.cpp
+@@ -46,7 +46,6 @@
+ 
+ 
+ using namespace OPENEXR_IMF_NAMESPACE;
+-using namespace std;
+ 
+ 
+ namespace {
+@@ -54,9 +53,14 @@ namespace {
+ void
+ testFile1 (const char fileName[], bool isImfFile)
+ {
+-    cout << fileName << " " << flush;
++    std::cout << fileName << " " << std::flush;
+ 
+-    ifstream f (fileName, ios_base::binary);
++#ifdef _WIN32
++	std::wstring filenameStr = StrUtils::utf8_to_utf16(std::string(fileName));
++#else
++	std::string filenameStr(fileName);
++#endif
++    OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream f (filenameStr, std::ios_base::binary);
+     assert (!!f);
+ 
+     char bytes[4];
+@@ -64,14 +68,14 @@ testFile1 (const char fileName[], bool isImfFile)
+ 
+     assert (!!f && isImfFile == isImfMagic (bytes));
+ 
+-    cout << "is " << (isImfMagic (bytes)? "": "not ") << "an OpenEXR file\n";
++    std::cout << "is " << (isImfMagic (bytes)? "": "not ") << "an OpenEXR file\n";
+ }
+ 
+ 
+ void
+ testFile2 (const char fileName[], bool exists, bool exrFile, bool tiledFile)
+ {
+-    cout << fileName << " " << flush;
++    std::cout << fileName << " " << std::flush;
+ 
+     bool exr, tiled;
+ 
+@@ -107,9 +111,9 @@ testFile2 (const char fileName[], bool exists, bool exrFile, bool tiledFile)
+ 	    assert (is.tellg() == 0);
+     }
+ 
+-    cout << (exists? "exists": "does not exist") << ", " <<
++    std::cout << (exists? "exists": "does not exist") << ", " <<
+ 	    (exrFile? "is an OpenEXR file": "is not an OpenEXR file") << ", " <<
+-	    (tiledFile? "is tiled": "is not tiled") << endl;
++	    (tiledFile? "is tiled": "is not tiled") << std::endl;
+ }
+ 
+ } // namespace
+@@ -120,7 +124,7 @@ testMagic (const std::string &)
+ {
+     try
+     {
+-	cout << "Testing magic number" << endl;
++	std::cout << "Testing magic number" << std::endl;
+ 
+ 	testFile1 (ILM_IMF_TEST_IMAGEDIR "comp_none.exr", true);
+ 	testFile1 (ILM_IMF_TEST_IMAGEDIR "invalid.exr", false);
+@@ -130,11 +134,11 @@ testMagic (const std::string &)
+ 	testFile2 (ILM_IMF_TEST_IMAGEDIR "invalid.exr", true, false, false);
+ 	testFile2 (ILM_IMF_TEST_IMAGEDIR "does_not_exist.exr", false, false, false);
+ 
+-	cout << "ok\n" << endl;
++	std::cout << "ok\n" << std::endl;
+     }
+     catch (const std::exception &e)
+     {
+-	cerr << "ERROR -- caught exception: " << e.what() << endl;
++	std::cerr << "ERROR -- caught exception: " << e.what() << std::endl;
+ 	assert (false);
+     }
+ }
+diff --git a/OpenEXR/IlmImfTest/testPreviewImage.cpp b/OpenEXR/IlmImfTest/testPreviewImage.cpp
+index 16c0573..afeff40 100644
+--- a/OpenEXR/IlmImfTest/testPreviewImage.cpp
++++ b/OpenEXR/IlmImfTest/testPreviewImage.cpp
+@@ -33,6 +33,7 @@
+ ///////////////////////////////////////////////////////////////////////////
+ 
+ 
++#include <ImfStdIO.h>
+ #include <ImfRgbaFile.h>
+ #include <ImfArray.h>
+ #include <ImfPreviewImage.h>
+@@ -46,7 +47,6 @@
+ 
+ 
+ using namespace OPENEXR_IMF_NAMESPACE;
+-using namespace std;
+ using namespace IMATH_NAMESPACE;
+ 
+ 
+@@ -77,7 +77,7 @@ readWriteFiles (const char fileName1[],
+     // the files are identical.
+     //
+ 
+-    cout << "reading file " << fileName1 << endl;
++    std::cout << "reading file " << fileName1 << std::endl;
+ 
+     RgbaInputFile file1 (fileName1);
+ 
+@@ -94,7 +94,7 @@ readWriteFiles (const char fileName1[],
+     file1.setFrameBuffer (pixels1 - dx - dy * w, 1, w);
+     file1.readPixels (dw.min.y, dw.max.y);
+ 
+-    cout << "generating preview image" << endl;
++    std::cout << "generating preview image" << std::endl;
+ 
+     const int PREVIEW_WIDTH  = 128;
+     const int PREVIEW_HEIGHT = 64;
+@@ -105,7 +105,7 @@ readWriteFiles (const char fileName1[],
+ 	for (int x = 0; x < PREVIEW_WIDTH; ++x)
+ 	    preview1.pixel (x, y) = PreviewRgba (x*2, y*4, x+y, 128);
+ 
+-    cout << "writing file " << fileName2 << endl;
++    std::cout << "writing file " << fileName2 << std::endl;
+ 
+     {
+ 	Header header (file1.header());
+@@ -118,7 +118,7 @@ readWriteFiles (const char fileName1[],
+ 	    file2.writePixels (1);
+     }
+ 
+-    cout << "reading file " << fileName2 << endl;
++    std::cout << "reading file " << fileName2 << std::endl;
+ 
+     {
+ 	RgbaInputFile file2 (fileName2);
+@@ -155,7 +155,7 @@ readWriteFiles (const char fileName1[],
+ 	}
+     }
+ 
+-    cout << "writing file " << fileName3 << endl;
++    std::cout << "writing file " << fileName3 << std::endl;
+ 
+     {
+ 	Header header (file1.header());
+@@ -173,11 +173,18 @@ readWriteFiles (const char fileName1[],
+ 	}
+     }
+ 
+-    cout << "comparing files " << fileName2 << " and " << fileName3 << endl;
++    std::cout << "comparing files " << fileName2 << " and " << fileName3 << std::endl;
+ 
+     {
+-	ifstream file2 (fileName2, std::ios_base::binary);
+-	ifstream file3 (fileName3, std::ios_base::binary);
++#ifdef _WIN32
++	std::wstring filename2Str = StrUtils::utf8_to_utf16(std::string(fileName2));
++	std::wstring filename3Str = StrUtils::utf8_to_utf16(std::string(fileName3));
++#else
++	std::string filename2Str(fileName2);
++	std::string filename3Str(fileName3);
++#endif
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream file2 (filename2Str, std::ios_base::binary);
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream file3 (filename3Str, std::ios_base::binary);
+ 
+ 	while (true)
+ 	{
+@@ -207,17 +214,17 @@ testPreviewImage (const std::string &tempDir)
+ 
+     try
+     {
+-	cout << "Testing preview image attribute" << endl;
++	std::cout << "Testing preview image attribute" << std::endl;
+ 
+ 	readWriteFiles (ILM_IMF_TEST_IMAGEDIR "comp_piz.exr",
+ 			filename1.c_str(),
+ 			filename2.c_str());
+ 
+-	cout << "ok\n" << endl;
++	std::cout << "ok\n" << std::endl;
+     }
+     catch (const std::exception &e)
+     {
+-	cerr << "ERROR -- caught exception: " << e.what() << endl;
++	std::cerr << "ERROR -- caught exception: " << e.what() << std::endl;
+ 	assert (false);
+     }
+ }
