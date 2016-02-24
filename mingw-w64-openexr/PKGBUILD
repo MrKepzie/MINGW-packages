@@ -21,7 +21,8 @@ source=("http://download.savannah.nongnu.org/releases/openexr/${_realname}-${pkg
         cmake-soversion.patch
         pull93.patch
         change-suffixes-for-64bit-literals.patch
-        win-dwalookups.patch)
+        win-dwalookups.patch
+        openexr-2.2.0-mingw-utf8.patch)
 md5sums=('b64e931c82aa3790329c21418373db4e'
          '15d924b75a3494c7c722dd0b2e969437'
          'd87df3d057dd8d902c61a3b88f05fd0d'
@@ -32,7 +33,8 @@ md5sums=('b64e931c82aa3790329c21418373db4e'
          '9371e6ceb96e11cc2bd980cfd954fd6d'
          'eebc359f6766a00de4e2f35ef00ac860'
          'c190b400bfe038e70f26e7a86e2219bd'
-         'e913e6fa443d2ae28951ed22ae680653')
+         'e913e6fa443d2ae28951ed22ae680653'
+         '0e5655834d542ef3ce33aab34bb61d00')
 
 prepare(){
   cd "${srcdir}/${_realname}-$pkgver"
@@ -50,7 +52,7 @@ prepare(){
   patch -p2 -i "${srcdir}/pull93.patch"
   patch -p2 -i ${srcdir}/change-suffixes-for-64bit-literals.patch
   patch -p1 -i ${srcdir}/win-dwalookups.patch
-
+  patch -p2 -i ${srcdir}/openexr-2.2.0-mingw-utf8.patch 
 }
 
 build() {
