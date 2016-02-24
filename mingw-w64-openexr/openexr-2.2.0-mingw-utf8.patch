@@ -1,0 +1,670 @@
+diff --git a/OpenEXR/IlmImf/CMakeLists.txt b/OpenEXR/IlmImf/CMakeLists.txt
+index 18d90ed..ba6a95a 100644
+--- a/OpenEXR/IlmImf/CMakeLists.txt
++++ b/OpenEXR/IlmImf/CMakeLists.txt
+@@ -259,6 +259,7 @@ INSTALL ( FILES
+   ImfDeepImageState.h
+   ImfDeepImageStateAttribute.h
+   ImfFloatVectorAttribute.h
++  fstream_mingw.h
+   DESTINATION
+   ${CMAKE_INSTALL_PREFIX}/include/OpenEXR
+ )
+diff --git a/OpenEXR/IlmImf/ImfDeepScanLineInputFile.cpp b/OpenEXR/IlmImf/ImfDeepScanLineInputFile.cpp
+index 8a7002b..24fdecc 100644
+--- a/OpenEXR/IlmImf/ImfDeepScanLineInputFile.cpp
++++ b/OpenEXR/IlmImf/ImfDeepScanLineInputFile.cpp
+@@ -80,7 +80,6 @@ using IMATH_NAMESPACE::divp;
+ using IMATH_NAMESPACE::modp;
+ using std::string;
+ using std::vector;
+-using std::ifstream;
+ using std::min;
+ using std::max;
+ using ILMTHREAD_NAMESPACE::Mutex;
+diff --git a/OpenEXR/IlmImf/ImfDeepScanLineOutputFile.cpp b/OpenEXR/IlmImf/ImfDeepScanLineOutputFile.cpp
+index ebee084..4324c67 100644
+--- a/OpenEXR/IlmImf/ImfDeepScanLineOutputFile.cpp
++++ b/OpenEXR/IlmImf/ImfDeepScanLineOutputFile.cpp
+@@ -75,7 +75,6 @@ using IMATH_NAMESPACE::divp;
+ using IMATH_NAMESPACE::modp;
+ using std::string;
+ using std::vector;
+-using std::ofstream;
+ using std::min;
+ using std::max;
+ using ILMTHREAD_NAMESPACE::Mutex;
+diff --git a/OpenEXR/IlmImf/ImfDeepTiledOutputFile.cpp b/OpenEXR/IlmImf/ImfDeepTiledOutputFile.cpp
+index a9b226b..2982ac7 100644
+--- a/OpenEXR/IlmImf/ImfDeepTiledOutputFile.cpp
++++ b/OpenEXR/IlmImf/ImfDeepTiledOutputFile.cpp
+@@ -81,7 +81,6 @@ using IMATH_NAMESPACE::Box2i;
+ using IMATH_NAMESPACE::V2i;
+ using std::string;
+ using std::vector;
+-using std::ofstream;
+ using std::map;
+ using std::min;
+ using std::max;
+diff --git a/OpenEXR/IlmImf/ImfOutputFile.cpp b/OpenEXR/IlmImf/ImfOutputFile.cpp
+index 2619d9c..f64853b 100644
+--- a/OpenEXR/IlmImf/ImfOutputFile.cpp
++++ b/OpenEXR/IlmImf/ImfOutputFile.cpp
+@@ -77,7 +77,6 @@ using IMATH_NAMESPACE::divp;
+ using IMATH_NAMESPACE::modp;
+ using std::string;
+ using std::vector;
+-using std::ofstream;
+ using std::min;
+ using std::max;
+ using ILMTHREAD_NAMESPACE::Mutex;
+diff --git a/OpenEXR/IlmImf/ImfScanLineInputFile.cpp b/OpenEXR/IlmImf/ImfScanLineInputFile.cpp
+index 9e13b9f..3bb560f 100644
+--- a/OpenEXR/IlmImf/ImfScanLineInputFile.cpp
++++ b/OpenEXR/IlmImf/ImfScanLineInputFile.cpp
+@@ -73,7 +73,6 @@ using IMATH_NAMESPACE::divp;
+ using IMATH_NAMESPACE::modp;
+ using std::string;
+ using std::vector;
+-using std::ifstream;
+ using std::min;
+ using std::max;
+ using std::sort;
+diff --git a/OpenEXR/IlmImf/ImfStdIO.cpp b/OpenEXR/IlmImf/ImfStdIO.cpp
+index 1839a94..7828bc0 100644
+--- a/OpenEXR/IlmImf/ImfStdIO.cpp
++++ b/OpenEXR/IlmImf/ImfStdIO.cpp
+@@ -43,14 +43,28 @@
+ #include <ImfStdIO.h>
+ #include "Iex.h"
+ #include <errno.h>
+-
+-using namespace std;
++#ifdef _WIN32
++#include <windows.h>
++#endif
+ #include "ImfNamespace.h"
+ 
+ OPENEXR_IMF_INTERNAL_NAMESPACE_SOURCE_ENTER
+ 
+ namespace {
+ 
++#ifdef _WIN32
++std::wstring
++utf8_to_utf16 (const std::string& str)
++{
++    std::wstring native;
++    
++    native.resize(MultiByteToWideChar (CP_UTF8, 0, str.c_str(), -1, NULL, 0));
++    MultiByteToWideChar (CP_UTF8, 0, str.c_str(), -1, &native[0], (int)native.size());
++
++    return native;
++}
++#endif // _WIN32
++
+ void
+ clearError ()
+ {
+@@ -59,7 +73,7 @@ clearError ()
+ 
+ 
+ bool
+-checkError (istream &is, streamsize expected = 0)
++checkError (std::istream &is, std::streamsize expected = 0)
+ {
+     if (!is)
+     {
+@@ -79,7 +93,7 @@ checkError (istream &is, streamsize expected = 0)
+ 
+ 
+ void
+-checkError (ostream &os)
++checkError (std::ostream &os)
+ {
+     if (!os)
+     {
+@@ -95,7 +109,7 @@ checkError (ostream &os)
+ 
+ StdIFStream::StdIFStream (const char fileName[]):
+     OPENEXR_IMF_INTERNAL_NAMESPACE::IStream (fileName),
+-    _is (new ifstream (fileName, ios_base::binary)),
++    _is (new OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream (utf8_to_utf16(std::string(fileName)), std::ios_base::binary)),
+     _deleteStream (true)
+ {
+     if (!*_is)
+@@ -106,7 +120,7 @@ StdIFStream::StdIFStream (const char fileName[]):
+ }
+ 
+     
+-StdIFStream::StdIFStream (ifstream &is, const char fileName[]):
++StdIFStream::StdIFStream (OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream &is, const char fileName[]):
+     OPENEXR_IMF_INTERNAL_NAMESPACE::IStream (fileName),
+     _is (&is),
+     _deleteStream (false)
+@@ -158,7 +172,7 @@ StdIFStream::clear ()
+ 
+ StdOFStream::StdOFStream (const char fileName[]):
+     OPENEXR_IMF_INTERNAL_NAMESPACE::OStream (fileName),
+-    _os (new ofstream (fileName, ios_base::binary)),
++    _os (new OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream (utf8_to_utf16(std::string(fileName)), std::ios_base::binary)),
+     _deleteStream (true)
+ {
+     if (!*_os)
+@@ -169,7 +183,7 @@ StdOFStream::StdOFStream (const char fileName[]):
+ }
+ 
+ 
+-StdOFStream::StdOFStream (ofstream &os, const char fileName[]):
++StdOFStream::StdOFStream (OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream &os, const char fileName[]):
+     OPENEXR_IMF_INTERNAL_NAMESPACE::OStream (fileName),
+     _os (&os),
+     _deleteStream (false)
+diff --git a/OpenEXR/IlmImf/ImfStdIO.h b/OpenEXR/IlmImf/ImfStdIO.h
+index 56ea4e2..781d6d0 100644
+--- a/OpenEXR/IlmImf/ImfStdIO.h
++++ b/OpenEXR/IlmImf/ImfStdIO.h
+@@ -50,9 +50,26 @@
+ #include <fstream>
+ #include <sstream>
+ 
++#if defined(_WIN32) && defined(__GLIBCXX__)
++#define FSTREAM_USE_STDIO_FILEBUF 1
++#include "fstream_mingw.h"
++#endif
+ 
+ OPENEXR_IMF_INTERNAL_NAMESPACE_HEADER_ENTER
+ 
++
++#if FSTREAM_USE_STDIO_FILEBUF
++// MingW uses GCC to build, but does not support having a wchar_t* passed as argument
++// of ifstream::open or ofstream::open. To properly support UTF-8 encoding on MingW we must
++// use the __gnu_cxx::stdio_filebuf GNU extension that can be used with _wfsopen and returned
++// into a istream which share the same API as ifsteam. The same reasoning holds for ofstream.
++typedef basic_ifstream<char> ifstream;
++typedef basic_ofstream<char> ofstream;
++#else
++typedef std::ifstream ifstream;
++typedef std::ofstream ofstream;
++#endif //FSTREAM_USE_STDIO_FILEBUF
++
+ //-------------------------------------------
+ // class StdIFStream -- an implementation of
+ // class OPENEXR_IMF_INTERNAL_NAMESPACE::IStream based on class std::ifstream
+@@ -76,7 +93,7 @@ class IMF_EXPORT StdIFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::IStream
+     // will not close the std::ifstream.
+     //---------------------------------------------------------
+ 
+-    StdIFStream (std::ifstream &is, const char fileName[]);
++    StdIFStream (OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream &is, const char fileName[]);
+ 
+ 
+     virtual ~StdIFStream ();
+@@ -88,7 +105,7 @@ class IMF_EXPORT StdIFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::IStream
+ 
+   private:
+ 
+-    std::ifstream *	_is;
++    OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream *	_is;
+     bool		_deleteStream;
+ };
+ 
+@@ -116,7 +133,7 @@ class IMF_EXPORT StdOFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::OStream
+     // will not close the std::ofstream.
+     //---------------------------------------------------------
+ 
+-    StdOFStream (std::ofstream &os, const char fileName[]);
++    StdOFStream (OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream &os, const char fileName[]);
+ 
+ 
+     virtual ~StdOFStream ();
+@@ -127,7 +144,7 @@ class IMF_EXPORT StdOFStream: public OPENEXR_IMF_INTERNAL_NAMESPACE::OStream
+ 
+   private:
+ 
+-    std::ofstream *	_os;
++    OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream *	_os;
+     bool		_deleteStream;
+ };
+ 
+diff --git a/OpenEXR/IlmImf/ImfTiledOutputFile.cpp b/OpenEXR/IlmImf/ImfTiledOutputFile.cpp
+index 3a17561..d54584c 100644
+--- a/OpenEXR/IlmImf/ImfTiledOutputFile.cpp
++++ b/OpenEXR/IlmImf/ImfTiledOutputFile.cpp
+@@ -79,7 +79,6 @@ using IMATH_NAMESPACE::Box2i;
+ using IMATH_NAMESPACE::V2i;
+ using std::string;
+ using std::vector;
+-using std::ofstream;
+ using std::map;
+ using std::min;
+ using std::max;
+diff --git a/OpenEXR/IlmImf/fstream_mingw.h b/OpenEXR/IlmImf/fstream_mingw.h
+new file mode 100644
+index 0000000..fd2ccc4
+--- /dev/null
++++ b/OpenEXR/IlmImf/fstream_mingw.h
+@@ -0,0 +1,357 @@
++///////////////////////////////////////////////////////////////////////////
++//
++// Copyright (c) 2004, Industrial Light & Magic, a division of Lucas
++// Digital Ltd. LLC
++// 
++// All rights reserved.
++// 
++// Redistribution and use in source and binary forms, with or without
++// modification, are permitted provided that the following conditions are
++// met:
++// *       Redistributions of source code must retain the above copyright
++// notice, this list of conditions and the following disclaimer.
++// *       Redistributions in binary form must reproduce the above
++// copyright notice, this list of conditions and the following disclaimer
++// in the documentation and/or other materials provided with the
++// distribution.
++// *       Neither the name of Industrial Light & Magic nor the names of
++// its contributors may be used to endorse or promote products derived
++// from this software without specific prior written permission. 
++// 
++// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++//
++///////////////////////////////////////////////////////////////////////////
++
++
++/// @file  fstream_mingw.h
++///
++/// @brief Utilities for dealing with fstream on MingW.
++/// Basically accepting wchar_t* filenames in the std::ifstream::open function
++/// is a Windows MSVC extension and does not work on MingW. This file implements
++/// ifstream and ofstream so that they work with UTF-8 filenames.
++
++
++#ifndef INCLUDED_IMF_FSTREAM_MINGW_H
++#define INCLUDED_IMF_FSTREAM_MINGW_H
++
++#include <cassert>
++#include <istream>
++#include <ostream>
++
++#if defined(_WIN32) && defined(__GLIBCXX__)
++#include <ext/stdio_filebuf.h> // __gnu_cxx::stdio_filebuf
++#include <fcntl.h>
++#include <sys/stat.h>
++#include <Share.h>
++
++#include "ImfNamespace.h"
++
++OPENEXR_IMF_INTERNAL_NAMESPACE_HEADER_ENTER
++
++
++template <class _CharT, class _Traits = std::char_traits<_CharT> >
++class basic_ifstream
++: public std::basic_istream<_CharT, _Traits>
++{
++public:
++    typedef _CharT                         char_type;
++    typedef _Traits                        traits_type;
++    typedef typename traits_type::int_type int_type;
++    typedef typename traits_type::pos_type pos_type;
++    typedef typename traits_type::off_type off_type;
++    
++    typedef typename __gnu_cxx::stdio_filebuf<char_type, traits_type> stdio_filebuf;
++
++    
++    basic_ifstream();
++    explicit basic_ifstream(const std::wstring& path, std::ios_base::openmode __mode = std::ios_base::in);
++    
++    virtual ~basic_ifstream();
++    
++    stdio_filebuf* rdbuf() const;
++    bool is_open() const;
++    void open(const std::wstring& path, std::ios_base::openmode __mode = std::ios_base::in);
++    void close();
++    
++private:
++    
++    void open_internal(const std::wstring& path, std::ios_base::openmode mode);
++    
++    stdio_filebuf* __sb_;
++};
++
++template <class _CharT, class _Traits>
++inline
++basic_ifstream<_CharT, _Traits>::basic_ifstream()
++: std::basic_istream<char_type, traits_type>(0)
++, __sb_(0)
++{
++}
++
++
++template <class _CharT, class _Traits>
++inline
++basic_ifstream<_CharT, _Traits>::basic_ifstream(const std::wstring& path, std::ios_base::openmode __mode)
++: std::basic_istream<char_type, traits_type>(0)
++, __sb_(0)
++{
++    open_internal(path, __mode | std::ios_base::in);
++}
++
++template <class _CharT, class _Traits>
++inline
++basic_ifstream<_CharT, _Traits>::~basic_ifstream()
++{
++    delete __sb_;
++}
++
++
++inline int
++ios_open_mode_to_oflag(std::ios_base::openmode mode)
++{
++    int f = 0;
++    if (mode & std::ios_base::in) {
++        f |= _O_RDONLY;
++    }
++    if (mode & std::ios_base::out) {
++        f |= _O_WRONLY;
++        f |= _O_CREAT;
++        if (mode & std::ios_base::app) {
++            f |= _O_APPEND;
++        }
++        if (mode & std::ios_base::trunc) {
++            f |= _O_TRUNC;
++        }
++    }
++    if (mode & std::ios_base::binary) {
++        f |= _O_BINARY;
++    } else {
++        f |= _O_TEXT;
++    }
++    return f;
++}
++
++template <class _CharT, class _Traits>
++inline
++void
++basic_ifstream<_CharT, _Traits>::open_internal(const std::wstring& path, std::ios_base::openmode mode)
++{
++	if (is_open()) {
++		// if the stream is already associated with a file (i.e., it is already open), calling this function fails.
++		this->setstate(std::ios_base::failbit);
++        return;
++	}
++    int fd;
++    int oflag = ios_open_mode_to_oflag(mode);
++    errno_t errcode = _wsopen_s(&fd, path.c_str(), oflag, _SH_DENYNO, _S_IREAD | _S_IWRITE);
++    if (errcode != 0) {
++        this->setstate(std::ios_base::failbit);
++        return;
++    }
++    __sb_ = new stdio_filebuf(fd, mode, 1);
++    if (__sb_ == 0) {
++        this->setstate(std::ios_base::failbit);
++        return;
++    }
++	// 409. Closing an fstream should clear error state
++    this->clear();
++	assert(__sb_);
++	
++	// In init() the rdstate() is set to badbit if __sb_ is NULL and
++	// goodbit otherwise. The assert afterwards ensures this.
++    this->init(__sb_);
++	assert(this->good() && !this->fail());
++}
++
++template <class _CharT, class _Traits>
++inline
++typename basic_ifstream<_CharT, _Traits>::stdio_filebuf*
++basic_ifstream<_CharT, _Traits>::rdbuf() const
++{
++    return const_cast<stdio_filebuf*>(__sb_);
++}
++
++
++template <class _CharT, class _Traits>
++inline
++bool
++basic_ifstream<_CharT, _Traits>::is_open() const
++{
++    return __sb_ && __sb_->is_open();
++}
++
++
++template <class _CharT, class _Traits>
++void
++basic_ifstream<_CharT, _Traits>::open(const std::wstring& path, std::ios_base::openmode __mode)
++{
++    open_internal(path, __mode | std::ios_base::in);
++}
++
++template <class _CharT, class _Traits>
++inline
++void
++basic_ifstream<_CharT, _Traits>::close()
++{
++    if (!__sb_) {
++        return;
++    }
++    if (__sb_->close() == 0)
++        this->setstate(std::ios_base::failbit);
++    
++    delete __sb_;
++	__sb_= 0;
++
++}
++
++
++
++template <class _CharT, class _Traits = std::char_traits<_CharT> >
++class basic_ofstream
++: public std::basic_ostream<_CharT, _Traits>
++{
++public:
++    typedef _CharT                         char_type;
++    typedef _Traits                        traits_type;
++    typedef typename traits_type::int_type int_type;
++    typedef typename traits_type::pos_type pos_type;
++    typedef typename traits_type::off_type off_type;
++    
++    typedef typename __gnu_cxx::stdio_filebuf<char_type, traits_type> stdio_filebuf;
++    
++    
++    basic_ofstream();
++    explicit basic_ofstream(const std::wstring& path, std::ios_base::openmode __mode = std::ios_base::out);
++    
++    virtual ~basic_ofstream();
++    
++    stdio_filebuf* rdbuf() const;
++    bool is_open() const;
++    void open(const std::wstring& path, std::ios_base::openmode __mode = std::ios_base::out);
++    void close();
++    
++private:
++    
++    void open_internal(const std::wstring& path, std::ios_base::openmode mode);
++    
++    stdio_filebuf* __sb_;
++};
++
++template <class _CharT, class _Traits>
++inline
++basic_ofstream<_CharT, _Traits>::basic_ofstream()
++: std::basic_ostream<char_type, traits_type>(0)
++, __sb_(0)
++{
++}
++
++
++template <class _CharT, class _Traits>
++inline
++basic_ofstream<_CharT, _Traits>::basic_ofstream(const std::wstring& path, std::ios_base::openmode __mode)
++: std::basic_ostream<char_type, traits_type>(0)
++, __sb_(0)
++{
++    open_internal(path, __mode  | std::ios_base::out);
++}
++
++template <class _CharT, class _Traits>
++inline
++basic_ofstream<_CharT, _Traits>::~basic_ofstream()
++{
++    delete __sb_;
++}
++
++
++template <class _CharT, class _Traits>
++inline
++void
++basic_ofstream<_CharT, _Traits>::open_internal(const std::wstring& path, std::ios_base::openmode mode)
++{
++	if (is_open()) {
++		// if the stream is already associated with a file (i.e., it is already open), calling this function fails.
++		this->setstate(std::ios_base::failbit);
++        return;
++	}
++    int fd;
++    int oflag = ios_open_mode_to_oflag(mode);
++    errno_t errcode = _wsopen_s(&fd, path.c_str(), oflag, _SH_DENYNO, _S_IREAD | _S_IWRITE);
++    if (errcode != 0) {
++        this->setstate(std::ios_base::failbit);
++        return;
++    }
++    __sb_ = new stdio_filebuf(fd, mode, 1);
++    if (__sb_ == 0) {
++        this->setstate(std::ios_base::failbit);
++        return;
++    }
++	// 409. Closing an fstream should clear error state
++    this->clear();
++	assert(__sb_);
++	
++	// In init() the rdstate() is set to badbit if __sb_ is NULL and
++	// goodbit otherwise. The assert afterwards ensures this.
++    this->init(__sb_);
++	assert(this->good() && !this->fail());
++}
++
++
++template <class _CharT, class _Traits>
++inline
++typename basic_ofstream<_CharT, _Traits>::stdio_filebuf*
++basic_ofstream<_CharT, _Traits>::rdbuf() const
++{
++    return const_cast<stdio_filebuf*>(__sb_);
++}
++
++
++
++template <class _CharT, class _Traits>
++inline
++bool
++basic_ofstream<_CharT, _Traits>::is_open() const
++{
++    return __sb_ && __sb_->is_open();
++}
++
++
++template <class _CharT, class _Traits>
++void
++basic_ofstream<_CharT, _Traits>::open(const std::wstring& path, std::ios_base::openmode __mode)
++{
++    open_internal(path, __mode | std::ios_base::out);
++}
++
++template <class _CharT, class _Traits>
++inline 
++void
++basic_ofstream<_CharT, _Traits>::close()
++{
++    if (!__sb_) {
++        return;
++    }
++    if (__sb_->close() == 0)
++        this->setstate(std::ios_base::failbit);
++    
++    delete __sb_;
++	__sb_= 0;
++}
++// basic_fstream
++
++OPENEXR_IMF_INTERNAL_NAMESPACE_HEADER_EXIT
++
++
++#endif // #if defined(_WIN32) && defined(__GLIBCXX__)
++
++
++#endif // INCLUDED_IMF_FSTREAM_MINGW_H
+diff --git a/OpenEXR/IlmImfTest/testExistingStreams.cpp b/OpenEXR/IlmImfTest/testExistingStreams.cpp
+index 69658c3..8025a40 100644
+--- a/OpenEXR/IlmImfTest/testExistingStreams.cpp
++++ b/OpenEXR/IlmImfTest/testExistingStreams.cpp
+@@ -136,7 +136,7 @@ MMIFStream::MMIFStream (const char fileName[]):
+     _length (0),
+     _pos (0)
+ {
+-    std::ifstream ifs (fileName, ios_base::binary);
++    OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream ifs (fileName, ios_base::binary);
+ 
+     //
+     // Get length of file
+@@ -227,7 +227,7 @@ writeReadScanLines (const char fileName[],
+     {
+         cout << "writing";
+ 	remove (fileName);
+-	std::ofstream os (fileName, ios_base::binary);
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream os (fileName, ios_base::binary);
+ 	StdOFStream ofs (os, fileName);
+ 	RgbaOutputFile out (ofs, header, WRITE_RGBA);
+ 	out.setFrameBuffer (&p1[0][0], 1, width);
+@@ -236,7 +236,7 @@ writeReadScanLines (const char fileName[],
+ 
+     {
+         cout << ", reading";
+-	std::ifstream is (fileName, ios_base::binary);
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream is (fileName, ios_base::binary);
+ 	StdIFStream ifs (is, fileName);
+ 	RgbaInputFile in (ifs);
+ 
+@@ -330,7 +330,7 @@ writeReadMultiPart (const char fileName[],
+     {
+         cout << "writing";
+         remove (fileName);
+-        std::ofstream os (fileName, ios_base::binary);
++        OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream os (fileName, ios_base::binary);
+         StdOFStream ofs (os, fileName);
+         MultiPartOutputFile out (ofs, &headers[0],2);
+         FrameBuffer f;
+@@ -349,7 +349,7 @@ writeReadMultiPart (const char fileName[],
+                         
+     {
+         cout << ", reading";
+-        std::ifstream is (fileName, ios_base::binary);
++        OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream is (fileName, ios_base::binary);
+         StdIFStream ifs (is, fileName);
+         MultiPartInputFile in (ifs);
+         
+@@ -462,7 +462,7 @@ writeReadTiles (const char fileName[],
+     {
+         cout << "writing";
+ 	remove (fileName);
+-	std::ofstream os (fileName, ios_base::binary);
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ofstream os (fileName, ios_base::binary);
+ 	StdOFStream ofs (os, fileName);
+ 	TiledRgbaOutputFile out (ofs, header, WRITE_RGBA, 20, 20, ONE_LEVEL);
+ 	out.setFrameBuffer (&p1[0][0], 1, width);
+@@ -471,7 +471,7 @@ writeReadTiles (const char fileName[],
+ 
+     {
+         cout << ", reading";
+-	std::ifstream is (fileName, ios_base::binary);
++	OPENEXR_IMF_INTERNAL_NAMESPACE::ifstream is (fileName, ios_base::binary);
+ 	StdIFStream ifs (is, fileName);
+ 	TiledRgbaInputFile in (ifs);
+ 
