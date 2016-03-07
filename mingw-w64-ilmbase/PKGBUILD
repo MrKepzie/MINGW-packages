@@ -17,14 +17,16 @@ source=("http://download.savannah.nongnu.org/releases/openexr/${_realname}-${pkg
         ilmbase-2.1.0_obsolete-macros.patch
         cmake-soversion.patch
         cmake-install-binaries.patch
-        pull93.patch)
+        pull93.patch
+	51046a110296a5c95b5c52ce6d9798f6fc9884d3.patch)
 md5sums=('b540db502c5fa42078249f43d18a4652'
          '3a34cf48b52c2af0584ef3e8cf50499a'
          '8b9d9c6e4ed88dc9dfb80ce4f637460a'
          'eeb3115d9db9531ec0f1292b7ef1b386'
          'dd481c883672600aa2f95111b16402ef'
          'baaa4fa9467969a611c70e62efa1fe6b'
-         '20447d0f67bbcd7b98d51fd0c37dabec')
+         '20447d0f67bbcd7b98d51fd0c37dabec'
+	 'foo')
 prepare(){
   cd "${srcdir}/${_realname}-${pkgver}"
   # Use either one or the other of the ilmthread patches
@@ -35,6 +37,7 @@ prepare(){
   patch -p1 -i "${srcdir}/cmake-soversion.patch"
   patch -p1 -i "${srcdir}/cmake-install-binaries.patch"
   patch -p2 -i "${srcdir}/pull93.patch"
+  patch -p2 -i "${srcdir}/51046a110296a5c95b5c52ce6d9798f6fc9884d3.patch"
 }
 
 build() {
