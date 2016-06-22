@@ -1,20 +1,19 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
 
 _realname=poppler
+pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=0.34.0
+pkgver=0.43.0
 pkgrel=1
 pkgdesc="PDF rendering library based on xpdf 3.0 (mingw-w64)"
 arch=('any')
-url="http://poppler.freedesktop.org"
+url="https://poppler.freedesktop.org/"
 license=("GPL")
 makedepends=("${MINGW_PACKAGE_PREFIX}-gcc"
             "${MINGW_PACKAGE_PREFIX}-pkg-config"
             "${MINGW_PACKAGE_PREFIX}-glib2"
-            "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
-            "${MINGW_PACKAGE_PREFIX}-qt5")
+            "${MINGW_PACKAGE_PREFIX}-gobject-introspection")
 depends=("${MINGW_PACKAGE_PREFIX}-cairo"
-         "${MINGW_PACKAGE_PREFIX}-curl"
          "${MINGW_PACKAGE_PREFIX}-freetype"
          "${MINGW_PACKAGE_PREFIX}-icu"
          "${MINGW_PACKAGE_PREFIX}-libjpeg"
@@ -22,18 +21,16 @@ depends=("${MINGW_PACKAGE_PREFIX}-cairo"
          "${MINGW_PACKAGE_PREFIX}-libtiff"
          "${MINGW_PACKAGE_PREFIX}-openjpeg"
          "${MINGW_PACKAGE_PREFIX}-poppler-data"
+         "${MINGW_PACKAGE_PREFIX}-lcms2"
          "${MINGW_PACKAGE_PREFIX}-zlib")
 optdepends=("${MINGW_PACKAGE_PREFIX}-glib2: libpoppler-glib"
             "${MINGW_PACKAGE_PREFIX}-qt5: libpoppler-qt5")
 options=('strip' 'staticlibs')
-source=("http://poppler.freedesktop.org/${_realname}-${pkgver}.tar.xz"
-        "give-cc-to-gir-scanner.mingw.patch")
-md5sums=('7d788f85bca1c03d71773af0b902e203'
-         '727c1b414987f6ee2ba841d9db57a967')
+source=("https://poppler.freedesktop.org/${_realname}-${pkgver}.tar.xz")
+sha256sums=('c720e26a26ee10b7ebc9e256d2ee7adcdb536cf85f9f1c4777a38f7f81fb2456')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
-  patch -p1 -i "$srcdir/give-cc-to-gir-scanner.mingw.patch"
   #sed -i -e '/AC_PATH_XTRA/d' configure.ac
   #sed -i "s:AM_CONFIG_HEADER:AC_CONFIG_HEADERS:" configure.ac
   autoreconf -fi
@@ -48,7 +45,8 @@ build() {
     --host=${MINGW_CHOST} \
     --enable-xpdf-headers \
     --enable-zlib \
-    --enable-libcurl \
+    --disable-libcurl \
+    --enable-cmyk \
     --disable-gtk-test \
     --enable-utils \
     --disable-gtk-doc-html \
