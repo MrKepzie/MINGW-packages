@@ -50,7 +50,11 @@ build() {
     --disable-gtk-test \
     --enable-utils \
     --disable-gtk-doc-html \
-    --with-font-configuration=win32
+    --enable-introspection=no \
+    --disable-poppler-qt4 \
+    --disable-poppler-qt5 \
+    --disable-utils \ 
+#    --with-font-configuration=win32
 
   make
 }
