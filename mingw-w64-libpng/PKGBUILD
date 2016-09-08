@@ -12,18 +12,13 @@ makedepends=("${MINGW_PACKAGE_PREFIX}-gcc")
 license=('custom')
 url="http://www.libpng.org/pub/png/libpng.html"
 options=('strip' '!libtool' 'staticlibs')
-source=("http://downloads.sourceforge.net/sourceforge/libpng/${_realname}-${pkgver}.tar.xz"
-        "http://downloads.sourceforge.net/project/libpng-apng/libpng16/${pkgver}/${_realname}-${pkgver}-apng.patch.gz")
+source=("http://downloads.sourceforge.net/sourceforge/libpng/${_realname}-${pkgver}.tar.xz")
 
 md5sums=('0cb72ef57a576bfed1b6cb4b5a09b554'
          'a9c85fe3cf0347ea94356f1e70d07973')
 
 prepare() {
   cd "${srcdir}/${_realname}-${pkgver}"
-
-  # Add animated PNG (apng) support
-  # see http://sourceforge.net/projects/libpng-apng/
-  patch -p1 -i "${srcdir}/${_realname}-${pkgver}-apng.patch"
 }
 
 build() {
