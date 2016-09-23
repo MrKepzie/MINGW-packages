@@ -1,40 +1,25 @@
 # Maintainer: Alexey Pavlov <alexpux@gmail.com>
-_variant=-openssl
-#_variant=-winssl
-#_variant=-gnutls
 
 _realname=curl
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
 pkgver=7.44.0
-pkgrel=1
+pkgrel=2
 pkgdesc="An URL retrival utility and library. (mingw-w64)"
 arch=('any')
 url="http://curl.haxx.se"
 license=("MIT")
 makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "${MINGW_PACKAGE_PREFIX}-pkg-config")
 depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
-         "${MINGW_PACKAGE_PREFIX}-c-ares"
-         "${MINGW_PACKAGE_PREFIX}-libidn"
-         "${MINGW_PACKAGE_PREFIX}-libssh2"
          "${MINGW_PACKAGE_PREFIX}-zlib"
-         "${MINGW_PACKAGE_PREFIX}-rtmpdump"
-         $([[ "$_variant" == "-openssl" ]] && echo \
-            "${MINGW_PACKAGE_PREFIX}-ca-certificates" \
-            "${MINGW_PACKAGE_PREFIX}-openssl")
-         $([[ "$_variant" == "-gnutls" ]] && echo \
-            "${MINGW_PACKAGE_PREFIX}-ca-certificates" \
-            "${MINGW_PACKAGE_PREFIX}-gnutls")
-         )
+         "${MINGW_PACKAGE_PREFIX}-openssl")
 options=('staticlibs')
-source=("$url/download/${_realname}-${pkgver}.tar.bz2"{,.asc}
+source=("$url/download/${_realname}-${pkgver}.tar.bz2"
         "0001-curl-relocation.patch"
         "0002-curl-mingw-enable-static.patch")
 md5sums=('6b952ca00e5473b16a11f05f06aa8dae'
-         'SKIP'
          '58520051c4ed77781d233c3fa40a5435'
          'eac9e212e619490966ae47004bec547b')
-validpgpkeys=('914C533DF9B2ADA2204F586D78E11C6B279D5C91')  # Daniel Stenberg
 
 prepare() {
   cd "${_realname}-${pkgver}"
@@ -53,22 +38,6 @@ build() {
   fi
   mkdir -p "${srcdir}/build-${CARCH}"
 
-  local -a _variant_config
-  if [ "${_variant}" = "-winssl" ]; then
-    _variant_config+=("--without-ssl")
-    _variant_config+=("--without-gnutls")
-    _variant_config+=("--with-winssl")
-    _variant_config+=("--without-ca-bundle")
-    _variant_config+=("--without-ca-path")
-  elif [ "${_variant}" = "-gnutls" ]; then
-    _variant_config+=("--without-ssl")
-    _variant_config+=("--with-gnutls")
-    _variant_config+=("--with-ca-bundle=${MINGW_PREFIX}/ssl/certs/ca-bundle.crt")
-  elif [ "${_variant}" = "-openssl" ]; then
-    _variant_config+=("--without-gnutls")
-    _variant_config+=("--with-ssl")
-    _variant_config+=("--with-ca-bundle=${MINGW_PREFIX}/ssl/certs/ca-bundle.crt")
-  fi
   cd "${srcdir}/build-${CARCH}"
   ../${_realname}-${pkgver}/configure \
     --prefix=${MINGW_PREFIX} \
@@ -78,8 +47,23 @@ build() {
     --without-random \
     --enable-static \
     --enable-shared \
-    --enable-sspi \
-    "${_variant_config[@]}" \
+    --with-ssl \
+    --without-libidn \
+    --without-winidn \
+    --without-librtmp \
+    --without-libssh2 \
+    --without-ca-path \
+    --without-ca-bundle \
+    --without-axtls \
+    --without-nss \
+    --without-polarssl \
+    --without-gnutls \
+    --without-winssl \
+    --disable-ldaps \
+    --disable-ldap \
+    --disable-rtsp \
+    --disable-ares \
+    --without-nghttp2 \
     "${extra_config[@]}"
   make
 }
