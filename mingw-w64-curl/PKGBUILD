@@ -4,7 +4,7 @@ _realname=curl
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
 pkgver=7.44.0
-pkgrel=2
+pkgrel=3
 pkgdesc="An URL retrival utility and library. (mingw-w64)"
 arch=('any')
 url="http://curl.haxx.se"
@@ -12,6 +12,7 @@ license=("MIT")
 makedepends=("${MINGW_PACKAGE_PREFIX}-gcc" "${MINGW_PACKAGE_PREFIX}-pkg-config")
 depends=("${MINGW_PACKAGE_PREFIX}-gcc-libs"
          "${MINGW_PACKAGE_PREFIX}-zlib"
+	 "${MINGW_PACKAGE_PREFIX}-ca-certificates"
          "${MINGW_PACKAGE_PREFIX}-openssl")
 options=('staticlibs')
 source=("$url/download/${_realname}-${pkgver}.tar.bz2"
@@ -52,8 +53,7 @@ build() {
     --without-winidn \
     --without-librtmp \
     --without-libssh2 \
-    --without-ca-path \
-    --without-ca-bundle \
+    --with-ca-bundle="${MINGW_PREFIX}/ssl/certs/ca-bundle.crt" \
     --without-axtls \
     --without-nss \
     --without-polarssl \
